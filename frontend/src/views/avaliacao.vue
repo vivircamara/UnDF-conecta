@@ -295,6 +295,7 @@ import { ref, computed, onMounted } from 'vue'
 import {
   listarQuestionariosAtivos,
   criarAvaliacao,
+  buscarAvaliacao,
   listarEnquetesAtivas,
   votarEnquete,
   resultadoEnquete,
@@ -318,11 +319,13 @@ const mensagemFeedback = ref('')
 const dialogConfirmar = ref(false)
 const itemSelecionado = ref<any>(null)
 
+type RespondidaInfo = { questionarioId: number; avaliacaoId: number }
+
 async function carregarQuestionarios() {
   try {
     const { data: questionarios } = await listarQuestionariosAtivos()
 
-    const respondidas: number[] = JSON.parse(
+    const respondidas: RespondidaInfo[] = JSON.parse(
       localStorage.getItem('avaliacoesRespondidas') ?? '[]'
     )
 
@@ -330,21 +333,44 @@ async function carregarQuestionarios() {
     const concluidas: any[] = []
 
     for (const q of questionarios) {
-      const item: AvaliacaoUI = {
-        ...q,
-        subtitulo: q.descricao ?? '',
-        nota: 0,
-        comentario: '',
-        placeholder: 'Comentário (opcional)...',
-      }
+      const info = respondidas.find(r => r.questionarioId === q.id)
 
-      if (respondidas.includes(q.id)) {
-        concluidas.push({
-          ...item,
-          dataEnvio: '-'
-        })
+      if (info) {
+        try {
+          const { data: avaliacao } = await buscarAvaliacao(info.avaliacaoId)
+
+          const respostaNota = avaliacao.respostas.find(r => r.nota != null)
+          const respostaTexto = avaliacao.respostas.find(r => r.texto)
+
+          concluidas.push({
+            ...q,
+            subtitulo: q.descricao ?? '',
+            nota: respostaNota?.nota ?? 0,
+            comentario: respostaTexto?.texto ?? '',
+            dataEnvio: avaliacao.enviadaEm
+              ? new Date(avaliacao.enviadaEm).toLocaleDateString('pt-BR')
+              : '-',
+          })
+        } catch (err) {
+          // Avaliação referenciada no localStorage não existe mais no backend
+          // (ex.: banco resetado). Trata como pendente para não perder o questionário.
+          console.warn(`Avaliação ${info.avaliacaoId} não encontrada, tratando como pendente.`, err)
+          pendentes.push({
+            ...q,
+            subtitulo: q.descricao ?? '',
+            nota: 0,
+            comentario: '',
+            placeholder: 'Comentário (opcional)...',
+          })
+        }
       } else {
-        pendentes.push(item)
+        pendentes.push({
+          ...q,
+          subtitulo: q.descricao ?? '',
+          nota: 0,
+          comentario: '',
+          placeholder: 'Comentário (opcional)...',
+        })
       }
     }
 
@@ -439,7 +465,7 @@ async function processarEnvioFinal() {
     const { data: perguntas } =
       await listarPerguntasDoQuestionario(item.id)
 
-    await criarAvaliacao({
+    const { data: avaliacaoCriada } = await criarAvaliacao({
       questionarioId: item.id,
       respostas: [
         {
@@ -450,13 +476,18 @@ async function processarEnvioFinal() {
       ]
     })
 
-    // Salva localmente
-    const respondidas: number[] = JSON.parse(
+    // Salva localmente o par questionarioId -> avaliacaoId
+    // (necessário para recuperar a nota real ao recarregar a página,
+    // já que ainda não há autenticação/usuário para consultar no backend)
+    const respondidas: RespondidaInfo[] = JSON.parse(
       localStorage.getItem('avaliacoesRespondidas') ?? '[]'
     )
 
-    if (!respondidas.includes(item.id)) {
-      respondidas.push(item.id)
+    if (!respondidas.some(r => r.questionarioId === item.id)) {
+      respondidas.push({
+        questionarioId: item.id,
+        avaliacaoId: avaliacaoCriada.data.id,
+      })
 
       localStorage.setItem(
         'avaliacoesRespondidas',
@@ -480,9 +511,10 @@ async function processarEnvioFinal() {
 
   } catch (err) {
     console.error(err)
+    mensagemFeedback.value = 'Não foi possível enviar sua avaliação. Tente novamente.'
+    snackbar.value = true
   }
 }
-
 // 3. Processa o voto da enquete
 async function responderEnquete(enquete: any) {
 
