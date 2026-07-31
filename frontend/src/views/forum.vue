@@ -196,7 +196,7 @@
                   class="text-caption text-grey-darken-1"
                   @click="post.mostrarComentarios = !post.mostrarComentarios"
                 >
-                  {{ post.comentariosCount }}
+                  {{ post.comentarios.length }}
                 </v-btn>
               </div>
 
@@ -272,11 +272,10 @@ interface Post {
   categoria: string
   status?: string
   votos: number
-  comentariosCount: number
   curtido?: boolean
-  mostrarComentarios?: boolean
-  novoComentario?: string
-  comentarios?: Comentario[]
+  mostrarComentarios: boolean
+  novoComentario: string
+  comentarios: Comentario[]
 }
 
 const searchQuery = ref('')
@@ -301,7 +300,9 @@ const publicacoes = ref<Post[]>([
     categoria: 'Infraestrutura',
     status: 'EM ANÁLISE',
     votos: 18,
-    comentariosCount: 6
+    mostrarComentarios: false,
+    novoComentario: '',
+    comentarios: []
   },
   {
     id: 2,
@@ -312,7 +313,9 @@ const publicacoes = ref<Post[]>([
     categoria: 'Ensino',
     status: 'PLANEJADA',
     votos: 42,
-    comentariosCount: 15
+    mostrarComentarios: false,
+    novoComentario: '',
+    comentarios: []
   },
   {
     id: 3,
@@ -323,7 +326,9 @@ const publicacoes = ref<Post[]>([
     categoria: 'Infraestrutura',
     status: 'EM ANÁLISE',
     votos: 28,
-    comentariosCount: 4
+    mostrarComentarios: false,
+    novoComentario: '',
+    comentarios: []
   }
 ])
 
@@ -340,7 +345,7 @@ const publicacoesFiltradas = computed(() => {
   }
   
   if (ordenacaoSelecionada.value === 'comments') {
-    return lista.sort((a, b) => (b.comentariosCount || 0) - (a.comentariosCount || 0))
+    return lista.sort((a, b) => b.comentarios.length - a.comentarios.length)
   }
 
   return lista.sort((a, b) => b.id - a.id)
@@ -372,28 +377,27 @@ function publicarPost() {
     categoria: novaPublicacao.value.categoria,
     status: 'EM ANÁLISE',
     votos: 0,
-    comentariosCount: 0
+    mostrarComentarios: false,
+    novoComentario: '',
+    comentarios: []
   })
 
   novaPublicacao.value = { titulo: '', categoria: null, conteudo: '' }
   dialogNovaPublicacao.value = false
 }
 
-function adicionarComentario(post: any) {
-  if (!post.novoComentario || !post.novoComentario.trim()) return
+function adicionarComentario(post: Post) {
+  const texto = post.novoComentario.trim()
 
-  if (!post.comentarios) {
-    post.comentarios = []
-  }
+  if (!texto) return
 
   post.comentarios.push({
     id: Date.now(),
     autor: 'Ana Silva Santos',
     data: 'agora mesmo',
-    texto: post.novoComentario.trim()
+    texto
   })
 
-  post.comentariosCount++
   post.novoComentario = ''
 }
 </script>
