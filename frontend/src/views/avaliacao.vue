@@ -1,11 +1,8 @@
 <template>
-  <AppHeader portal-label="Open Campus" module-label="Avaliação institucional" @toggle-menu="$emit('toggle-menu')"/>
-  <v-main class="w-100 bg-grey-lighten-4">
     <v-container fluid class="pa-0 bg-grey-lighten-4 fill-height align-start">
       <v-container fluid class="pa-6">
         <v-row>
           <v-col cols="12" md="3">
-            <!-- Menu de Navegação -->
             <v-card variant="flat" class="pa-2 mb-4 bg-transparent">
               <v-list density="compact" class="bg-transparent">
                 <v-list-item
@@ -237,7 +234,6 @@
         </v-row>
       </v-container>
     </v-container>
-  </v-main>
 
   <!-- MODAL DE CONFIRMAÇÃO DE ENVIO -->
   <v-dialog v-model="dialogConfirmar" max-width="450px">

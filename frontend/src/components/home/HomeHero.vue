@@ -12,10 +12,10 @@ defineProps<Props>()
 <template>
   <div class="home-hero text-center d-flex flex-column align-center">
     
-    <v-img
+        <v-img
   :src="simboloLogo"
   alt="Símbolo UnDF"
-  width="400"
+  width="300"
   max-width="100%"
   contain
   class="mb-0"
@@ -31,15 +31,15 @@ defineProps<Props>()
 
 <style scoped>
 .home-hero {
-  padding-block: 48px 32px;
+  padding-block: 8px 8px;
 }
 
 .home-hero__title {
-  font-size: 3.25rem; 
+  font-size: 2.8rem; 
   font-weight: 800;
   color: #0F2A4A; 
   letter-spacing: -0.01em;
-  margin-bottom: 8px; 
+  margin-bottom: 4px; 
 }
 
 .home-hero__subtitle {

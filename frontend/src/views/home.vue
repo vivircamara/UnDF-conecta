@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import AppHeader from '@/components/common/AppHeader.vue'
-import AppFooter from '@/components/common/AppFooter.vue'
 import HomeHero from '@/components/home/HomeHero.vue'
 import ModuleCard from '@/components/home/ModuleCard.vue'
 
@@ -49,37 +47,31 @@ const currentUser = {
 </script>
 
 <template>
-  <div class="home-view">
-    <AppHeader portal-label="Open Campus" module-label="Home" @toggle-menu="$emit('toggle-menu')"/>
+  <v-container class="home-view__content pt-0 pb-6 fill-height align-center" max-width="1100">
+    <div class="w-100">
+      <HomeHero
+        title="Open Campus"
+        subtitle="Universidade do Distrito Federal&#10;Professor Jorge Amaury Maia Nunes"
+      />
 
-    <v-main class="bg-background">
-      <v-container class="home-view__content" max-width="1100">
-        <HomeHero
-          title="Open Campus"
-          subtitle="Universidade do Distrito Federal&#10;Professor Jorge Amaury Maia Nunes"
-        />
-
-        <v-row justify="center">
-          <v-col
-            v-for="module in modules"
-            :key="module.key"
-            cols="12"
-            sm="6"
-            md="4"
-          >
-            <ModuleCard
-              :title="module.title"
-              :description="module.description"
-              :icon="module.icon"
-              :to="module.to"
-              :badge="module.badge"
-              :badge-color="module.badgeColor"
-            />
-          </v-col>
-        </v-row>
-      </v-container>
-    </v-main>
-
-    <AppFooter />
-  </div>
-</template> 
+      <v-row justify="center" class="ma-0">
+        <v-col
+          v-for="module in modules"
+          :key="module.key"
+          cols="12"
+          sm="6"
+          md="4"
+        >
+          <ModuleCard
+            :title="module.title"
+            :description="module.description"
+            :icon="module.icon"
+            :to="module.to"
+            :badge="module.badge"
+            :badge-color="module.badgeColor"
+          />
+        </v-col>
+      </v-row>
+    </div>
+  </v-container>
+</template>

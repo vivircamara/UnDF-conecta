@@ -1,6 +1,4 @@
 <template>
-   <AppHeader portal-label="Open Campus" module-label="Calendário de Eventos" @toggle-menu="$emit('toggle-menu')"/>   
-  <v-main>
     <v-container fluid class="pa-6 bg-grey-lighten-4">
       <v-row>
         <v-col cols="12" md="2">
@@ -254,13 +252,11 @@
 
       </v-row>
     </v-container>
-  </v-main>
   
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppHeader from '@/components/common/AppHeader.vue'
 
 interface CalendarEvent {
   id: number
@@ -364,26 +360,22 @@ function obterCorCategoria(cat: string) {
   return cores[cat] || 'primary'
 }
 
-// Computa os dias a serem exibidos de acordo com a visualização (mês, semana ou dia)
 const calendarDays = computed(() => {
   const days: CalendarDay[] = []
   const year = currentDate.value.getFullYear()
   const month = currentDate.value.getMonth()
   const today = new Date()
 
-  // 1. VISUALIZAÇÃO DE DIA
   if (viewType.value === 'dia') {
     const targetDate = selectedDate.value || currentDate.value
     days.push(createDayObject(targetDate, true, today))
     return days
   }
 
-  // 2. VISUALIZAÇÃO DE SEMANA
   if (viewType.value === 'semana') {
     const baseDate = selectedDate.value || currentDate.value
     const dayOfWeek = baseDate.getDay() // 0 (Dom) a 6 (Sáb)
     
-    // Pega do Domingo até o Sábado da semana atual
     for (let i = 0; i < 7; i++) {
       const d = new Date(baseDate)
       d.setDate(baseDate.getDate() - dayOfWeek + i)
@@ -393,7 +385,6 @@ const calendarDays = computed(() => {
     return days
   }
 
-  // 3. VISUALIZAÇÃO DE MÊS (Código original do mês)
   const firstDayOfMonth = new Date(year, month, 1)
   const lastDayOfMonth = new Date(year, month + 1, 0)
   const startDayOfWeek = firstDayOfMonth.getDay()
@@ -425,7 +416,6 @@ function createDayObject(date: Date, isCurrentMonth: boolean, today: Date): Cale
     d1.getMonth() === d2.getMonth() &&
     d1.getFullYear() === d2.getFullYear()
 
-  // Conecta os eventos da lista com as células do calendário
   const eventosDoDia = eventosFiltrados.value
     .filter(e => {
       const parts = e.data.split('-')
