@@ -107,11 +107,14 @@
               </v-card>
 
               <!-- Lista de Pendentes -->
-              <v-card
+              <v-form
                 v-for="item in avaliacoesPendentes"
                 :key="item.id"
-                class="mb-4 pa-5 rounded-xl elevation-1 bg-white border-sm"
+                @submit.prevent="abrirConfirmacao(item)"
               >
+                <v-card
+                  class="mb-4 pa-5 rounded-xl elevation-1 bg-white border-sm"
+                >
                 <div class="d-flex align-center mb-3">
                   <v-avatar color="blue-grey-lighten-5" size="44" class="mr-4">
                     <span class="text-h6 font-weight-bold text-blue-grey-darken-3">
@@ -147,19 +150,21 @@
                   density="compact"
                   hide-details
                   class="bg-grey-lighten-5 rounded-lg mb-4"
+                  @keydown.enter.prevent="abrirConfirmacao(item)"
                 ></v-text-field>
 
                 <div class="d-flex justify-end">
                   <v-btn
+                    type="submit"
                     color="#0F2A4A"
                     size="large"
                     class="text-none rounded-lg font-weight-bold px-6"
-                    @click="abrirConfirmacao(item)"
                   >
                     Enviar avaliação
                   </v-btn>
                 </div>
-              </v-card>
+                </v-card>
+              </v-form>
             </div>
 
             <!-- ABA 2: MINHAS AVALIAÇÕES (RESPONDIDAS) -->
@@ -235,8 +240,12 @@
       </v-container>
     </v-container>
 
-  <v-dialog v-model="dialogConfirmar" max-width="450px">
-    <v-card class="rounded-xl pa-2">
+  <v-dialog
+    v-model="dialogConfirmar"
+    max-width="450px"
+  >
+    <v-form @submit.prevent="processarEnvioFinal">
+      <v-card class="rounded-xl pa-2">
       <v-card-title class="text-h6 font-weight-bold pa-4 pb-2">
         Confirmar envio?
       </v-card-title>
@@ -251,25 +260,28 @@
       </v-card-text>
 
       <v-card-actions class="pa-4 pt-0 d-flex justify-end ga-2">
-        <v-btn 
-          variant="outlined" 
-          color="grey-darken-1" 
-          class="text-none rounded-lg font-weight-bold" 
+        <v-btn
+          type="button"
+          variant="outlined"
+          color="grey-darken-1"
+          class="text-none rounded-lg font-weight-bold"
           @click="dialogConfirmar = false"
         >
           Cancelar
         </v-btn>
         
-        <v-btn 
-          color="#0F2A4A" 
-          variant="flat" 
-          class="text-none rounded-lg font-weight-bold px-4" 
-          @click="processarEnvioFinal"
+        <v-btn
+          ref="botaoConfirmar"
+          type="submit"
+          color="#0F2A4A"
+          variant="flat"
+          class="text-none rounded-lg font-weight-bold px-4"
         >
           Sim, enviar
         </v-btn>
       </v-card-actions>
-    </v-card>
+      </v-card>
+    </v-form>
   </v-dialog>
 
   <v-snackbar v-model="snackbar" timeout="3000" color="#0F2A4A" rounded="lg">
@@ -278,7 +290,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import {
   avaliacoesPendentes,
   avaliacoesConcluidas,
@@ -295,6 +307,7 @@ const mensagemFeedback = ref('')
 
 const dialogConfirmar = ref(false)
 const itemSelecionado = ref<any>(null)
+const botaoConfirmar = ref<any>(null)
 
 const menuItems = ref([
   { title: 'Avaliações pendentes', value: 'pendentes' },
@@ -303,16 +316,23 @@ const menuItems = ref([
 ])
 
 function abrirConfirmacao(item: any) {
-  /*
-    if (item.nota === 0) {
-    mensagemFeedback.value = 'Por favor, selecione ao menos 1 estrela para avaliar.'
-    snackbar.value = true
-    return
-  } */
-  
+  // Nota 0 também é uma resposta válida.
   itemSelecionado.value = item
   dialogConfirmar.value = true
 }
+
+async function focarBotaoConfirmar() {
+  await nextTick()
+
+  const elemento = botaoConfirmar.value?.$el ?? botaoConfirmar.value
+  elemento?.focus?.()
+}
+
+watch(dialogConfirmar, (aberto) => {
+  if (aberto) {
+    void focarBotaoConfirmar()
+  }
+})
 
 function processarEnvioFinal() {
   if (!itemSelecionado.value) return
