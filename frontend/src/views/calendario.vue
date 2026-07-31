@@ -152,7 +152,7 @@
                 <v-btn icon="mdi-chevron-right" variant="text" density="compact" @click="nextMonth"></v-btn>
               </div>
             </div>
-            <span class="text-caption text-grey-darken-1">8 eventos agendados este mês.</span>
+            <span class="text-caption text-grey-darken-1">{{ resumoEventosDoMes }}</span>
           </v-card>
 
         
@@ -354,6 +354,31 @@ const currentMonthYear = computed(() => {
     month: 'long',
     year: 'numeric'
   }).replace(/^\w/, (c) => c.toUpperCase())
+})
+
+const quantidadeEventosDoMes = computed(() => {
+  const anoExibido = currentDate.value.getFullYear()
+  const mesExibido = currentDate.value.getMonth()
+
+  return eventosFiltrados.value.filter((evento) => {
+    const [ano, mes] = evento.data.split('-').map(Number)
+
+    return ano === anoExibido && mes - 1 === mesExibido
+  }).length
+})
+
+const resumoEventosDoMes = computed(() => {
+  const quantidade = quantidadeEventosDoMes.value
+
+  if (quantidade === 0) {
+    return 'Nenhum evento agendado neste mês.'
+  }
+
+  if (quantidade === 1) {
+    return '1 evento agendado neste mês.'
+  }
+
+  return `${quantidade} eventos agendados neste mês.`
 })
 
 function obterCorCategoria(cat: string) {
