@@ -37,9 +37,7 @@ const modules = computed<HomeModule[]>(() => [
   {
   key: 'avaliacao',
   title: 'Avaliação Institucional',
-  description: possuiPendenciasAvaliacao.value
-    ? `Você possui ${totalPendenciasAvaliacao.value} participação(ões) pendente(s).`
-    : 'Todas as avaliações e enquetes foram respondidas.',
+  description: 'Sua opinião constrói a nossa universidade. Responda aos questionários pendentes.',
   icon: 'mdi-clipboard-check-outline',
   to: '/avaliacao',
   badge: possuiPendenciasAvaliacao.value
