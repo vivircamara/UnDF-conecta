@@ -235,7 +235,6 @@
       </v-container>
     </v-container>
 
-  <!-- MODAL DE CONFIRMAÇÃO DE ENVIO -->
   <v-dialog v-model="dialogConfirmar" max-width="450px">
     <v-card class="rounded-xl pa-2">
       <v-card-title class="text-h6 font-weight-bold pa-4 pb-2">
@@ -273,7 +272,6 @@
     </v-card>
   </v-dialog>
 
-  <!-- SNACKBAR DE NOTIFICAÇÃO -->
   <v-snackbar v-model="snackbar" timeout="3000" color="#0F2A4A" rounded="lg">
     {{ mensagemFeedback }}
   </v-snackbar>
@@ -281,100 +279,29 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import AppHeader from '@/components/common/AppHeader.vue'
+import {
+  avaliacoesPendentes,
+  avaliacoesConcluidas,
+  enquetes,
+  totalAvaliacoes,
+  enquetesRespondidasCount,
+  porcentagemProgresso,
+  porcentagemEnquetes,
+} from '@/stores/avaliacao'
 
-// --- ESTADOS NAVEGAÇÃO E NOTIFICAÇÃO ---
 const menuAtivo = ref('pendentes')
 const snackbar = ref(false)
 const mensagemFeedback = ref('')
 
-// --- ESTADOS DO MODAL DE CONFIRMAÇÃO ---
 const dialogConfirmar = ref(false)
 const itemSelecionado = ref<any>(null)
 
-// --- MENU LATERAL ---
 const menuItems = ref([
   { title: 'Avaliações pendentes', value: 'pendentes' },
   { title: 'Minhas avaliações', value: 'minhas' },
   { title: 'Enquetes', value: 'enquetes' }
 ])
 
-// --- LISTA DE PENDENTES ---
-const avaliacoesPendentes = ref([
-  {
-    id: 1,
-    titulo: 'Cálculo I — Prof. Marina Duarte',
-    subtitulo: 'Disciplina · 2º semestre',
-    nota: 4,
-    comentario: '',
-    placeholder: 'Comentário (opcional)...'
-  },
-  {
-    id: 2,
-    titulo: 'Biblioteca Central',
-    subtitulo: 'Serviço institucional',
-    nota: 0,
-    comentario: '',
-    placeholder: 'Como avalia a infraestrutura e atendimento da biblioteca?'
-  },
-  {
-    id: 3,
-    titulo: 'Restaurante Universitário',
-    subtitulo: 'Serviço institucional',
-    nota: 5,
-    comentario: '',
-    placeholder: 'Comentário (opcional)...'
-  }
-])
-
-// --- LISTA DE CONCLUÍDAS ---
-const avaliacoesConcluidas = ref<any[]>([])
-
-// --- CÁLCULO DE PROGRESSO DINÂMICO ---
-const totalAvaliacoes = ref(3) // Total de avaliações do semestre
-
-const porcentagemProgresso = computed(() => {
-  return Math.round((avaliacoesConcluidas.value.length / totalAvaliacoes.value) * 100)
-})
-
-// --- CÁLCULO DE PROGRESSO DAS ENQUETES ---
-const enquetesRespondidasCount = computed(() => {
-  return enquetes.value.filter(e => e.respondido).length
-})
-
-const porcentagemEnquetes = computed(() => {
-  if (enquetes.value.length === 0) return 0
-  return Math.round((enquetesRespondidasCount.value / enquetes.value.length) * 100)
-})
-
-// --- LISTA DE ENQUETES ---
-const enquetes = ref([
-  {
-    id: 101,
-    pergunta: 'Você utiliza o acervo digital da biblioteca para os seus estudos?',
-    opcoes: ['Sim, frequentemente', 'Raramente', 'Não sabia que existia'],
-    respostaSelecionada: null,
-    respondido: false
-  },
-  {
-    id: 102,
-    pergunta: 'Como você avalia a qualidade do Wi-Fi disponibilizado nos blocos acadêmicos?',
-    opcoes: ['Excelente / Estável', 'Razoável (oscila às vezes)', 'Ruim / Instável', 'Não utilizo'],
-    respostaSelecionada: null,
-    respondido: false
-  },
-  {
-    id: 103,
-    pergunta: 'Qual modalidade de atendimento da secretaria do curso você prefere?',
-    opcoes: ['100% Presencial', 'Atendimento Online (Teams/WhatsApp)', 'Híbrido'],
-    respostaSelecionada: null,
-    respondido: false
-  }
-])
-
-// --- FUNÇÕES DE ENVIO ---
-
-// 1. Valida se marcou estrelas e abre o modal de confirmação
 function abrirConfirmacao(item: any) {
   if (item.nota === 0) {
     mensagemFeedback.value = 'Por favor, selecione ao menos 1 estrela para avaliar.'
@@ -386,20 +313,17 @@ function abrirConfirmacao(item: any) {
   dialogConfirmar.value = true
 }
 
-// 2. Processa o envio definitivo após o usuário clicar em "Sim, enviar" no modal
 function processarEnvioFinal() {
   if (!itemSelecionado.value) return
 
   const item = itemSelecionado.value
 
-  // Remove dos pendentes e adiciona às concluídas
   avaliacoesPendentes.value = avaliacoesPendentes.value.filter(a => a.id !== item.id)
   avaliacoesConcluidas.value.unshift({ 
     ...item, 
     dataEnvio: new Date().toLocaleDateString('pt-BR') 
   })
 
-  // Fecha o modal e dá o aviso de sucesso
   dialogConfirmar.value = false
   itemSelecionado.value = null
   
@@ -407,7 +331,6 @@ function processarEnvioFinal() {
   snackbar.value = true
 }
 
-// 3. Processa o voto da enquete
 function responderEnquete(enquete: any) {
   enquete.respondido = true
   mensagemFeedback.value = 'Obrigado por responder à enquete!'

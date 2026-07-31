@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import HomeHero from '@/components/home/HomeHero.vue'
 import ModuleCard from '@/components/home/ModuleCard.vue'
+import { computed } from 'vue'
+import {
+  possuiPendenciasAvaliacao,
+  totalPendenciasAvaliacao,
+} from '@/stores/avaliacao'
 
 interface HomeModule {
   key: string
@@ -12,7 +17,7 @@ interface HomeModule {
   badgeColor?: string
 }
 
-const modules: HomeModule[] = [
+const modules = computed<HomeModule[]>(() => [
   {
     key: 'forum',
     title: 'Fórum',
@@ -30,15 +35,19 @@ const modules: HomeModule[] = [
     to: '/calendario',
   },
   {
-    key: 'avaliacao',
-    title: 'Avaliação Institucional',
-    description: 'Sua opinião constrói a nossa universidade. Responda aos questionários pendentes.',
-    icon: 'mdi-clipboard-check-outline',
-    to: '/avaliacao',
-    badge: 'PENDENTE',
-    badgeColor: 'grey-lighten-1',
-  },
-]
+  key: 'avaliacao',
+  title: 'Avaliação Institucional',
+  description: possuiPendenciasAvaliacao.value
+    ? `Você possui ${totalPendenciasAvaliacao.value} participação(ões) pendente(s).`
+    : 'Todas as avaliações e enquetes foram respondidas.',
+  icon: 'mdi-clipboard-check-outline',
+  to: '/avaliacao',
+  badge: possuiPendenciasAvaliacao.value
+    ? 'PENDENTE'
+    : undefined,
+  badgeColor: 'grey-lighten-1',
+},
+])
 
 const currentUser = {
   name: 'Ana Silva Santos',
