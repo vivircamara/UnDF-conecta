@@ -37,12 +37,12 @@ withDefaults(defineProps<Props>(), {
       {{ badge }}
     </v-chip>
 
-    <v-card-text class="text-center py-8 px-6">
-      <div class="module-card__icon mx-auto mb-4">
-        <v-icon :icon="icon" size="28" color="secondary" />
+        <v-card-text class="text-center py-6 px-6">
+      <div class="module-card__icon mx-auto mb-3">
+        <v-icon :icon="icon" size="24" color="secondary" />
       </div>
 
-      <h2 class="module-card__title mb-2">{{ title }}</h2>
+      <h2 class="module-card__title mb-1">{{ title }}</h2>
       <p class="module-card__description">{{ description }}</p>
     </v-card-text>
   </v-card>
@@ -66,8 +66,8 @@ withDefaults(defineProps<Props>(), {
 }
 
 .module-card__icon {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background-color: rgba(var(--v-theme-secondary), 0.12);
   display: flex;

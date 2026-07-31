@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { toggleSidebar } from '@/stores/sidebar'
 
 defineEmits(['toggle-menu'])
@@ -10,10 +12,19 @@ interface Props {
   userAvatarUrl?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   portalLabel: 'Open Campus',
-  moduleLabel: 'Calendário de Eventos',
   userName: 'Ana Silva Santos'
+})
+
+const route = useRoute()
+
+
+const currentModuleLabel = computed(() => {
+  if (props.moduleLabel) return props.moduleLabel
+  if (route.path === '/') return '' 
+
+  return (route.meta?.title as string) || ''
 })
 </script>
 
@@ -25,9 +36,10 @@ withDefaults(defineProps<Props>(), {
       <router-link to="/" class="brand-link d-flex align-center gap-2">
         <span class="font-weight-bold text-subtitle-1 text-grey-darken-4">{{ portalLabel }}</span>
         
-        <template v-if="moduleLabel">
+        <!-- Usamos a nossa variável computada inteligente aqui -->
+        <template v-if="currentModuleLabel">
           <span class="text-grey-lighten-1">|</span>
-          <span class="text-subtitle-2 text-grey-darken-1 font-weight-regular">{{ moduleLabel }}</span>
+          <span class="text-subtitle-2 text-grey-darken-1 font-weight-regular">{{ currentModuleLabel }}</span>
         </template>
       </router-link>
     </div>
@@ -56,6 +68,6 @@ withDefaults(defineProps<Props>(), {
 }
 
 .brand-link:hover {
-  opacity: 0.85; 
+  opacity: 0.85;
 }
 </style>
