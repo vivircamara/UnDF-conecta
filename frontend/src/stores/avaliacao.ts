@@ -34,7 +34,7 @@ export const avaliacoesPendentes = ref<Avaliacao[]>([
     nota: 0,
     comentario: '',
     placeholder:
-      'Como avalia a infraestrutura e atendimento da biblioteca?',
+      'Comentário (opcional)...',
   },
   {
     id: 3,

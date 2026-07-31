@@ -303,11 +303,12 @@ const menuItems = ref([
 ])
 
 function abrirConfirmacao(item: any) {
-  if (item.nota === 0) {
+  /*
+    if (item.nota === 0) {
     mensagemFeedback.value = 'Por favor, selecione ao menos 1 estrela para avaliar.'
     snackbar.value = true
     return
-  }
+  } */
   
   itemSelecionado.value = item
   dialogConfirmar.value = true
