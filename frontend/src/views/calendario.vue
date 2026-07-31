@@ -172,8 +172,8 @@
                 <h2 class="text-h5 font-weight-bold mr-2">{{ currentMonthYear }}</h2>
                 <v-btn size="small" variant="outlined" color="primary" @click="goToToday">Hoje</v-btn>
                 <div class="ml-2">
-                  <v-btn icon="mdi-chevron-left" variant="text" density="compact" @click="prevMonth"></v-btn>
-                  <v-btn icon="mdi-chevron-right" variant="text" density="compact" @click="nextMonth"></v-btn>
+                  <v-btn icon="mdi-chevron-left" variant="text" density="compact" @click="previousPeriod"></v-btn>
+                  <v-btn icon="mdi-chevron-right" variant="text" density="compact" @click="nextPeriod"></v-btn>
                 </div>
               </div>
               
@@ -306,8 +306,15 @@ const categories = ref({
 })
 
 const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-const currentDate = ref(new Date())
-const selectedDate = ref<Date | null>(new Date())
+
+// currentDate controla o mês exibido; selectedDate controla as visões Semana e Dia.
+// Começamos no dia 1 para que os botões não abram sempre na última semana/dia
+// quando o hackathon acontece no fim do mês. O botão "Hoje" continua levando à data atual.
+const hoje = new Date()
+const currentDate = ref(new Date(hoje.getFullYear(), hoje.getMonth(), 1))
+const selectedDate = ref<Date | null>(
+  new Date(hoje.getFullYear(), hoje.getMonth(), 1)
+)
 
 const listaEventos = ref<EventoCompleto[]>([
   {
@@ -439,21 +446,71 @@ function createDayObject(date: Date, isCurrentMonth: boolean, today: Date): Cale
   }
 }
 
+function setActiveDate(date: Date) {
+  const normalizedDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  )
+
+  selectedDate.value = normalizedDate
+  currentDate.value = new Date(
+    normalizedDate.getFullYear(),
+    normalizedDate.getMonth(),
+    1
+  )
+}
+
 function prevMonth() {
-  currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() - 1, 1)
+  const target = new Date(
+    currentDate.value.getFullYear(),
+    currentDate.value.getMonth() - 1,
+    1
+  )
+  setActiveDate(target)
 }
 
 function nextMonth() {
-  currentDate.value = new Date(currentDate.value.getFullYear(), currentDate.value.getMonth() + 1, 1)
+  const target = new Date(
+    currentDate.value.getFullYear(),
+    currentDate.value.getMonth() + 1,
+    1
+  )
+  setActiveDate(target)
+}
+
+function previousPeriod() {
+  if (viewType.value === 'mes') {
+    prevMonth()
+    return
+  }
+
+  const baseDate = new Date(selectedDate.value || currentDate.value)
+  baseDate.setDate(
+    baseDate.getDate() - (viewType.value === 'semana' ? 7 : 1)
+  )
+  setActiveDate(baseDate)
+}
+
+function nextPeriod() {
+  if (viewType.value === 'mes') {
+    nextMonth()
+    return
+  }
+
+  const baseDate = new Date(selectedDate.value || currentDate.value)
+  baseDate.setDate(
+    baseDate.getDate() + (viewType.value === 'semana' ? 7 : 1)
+  )
+  setActiveDate(baseDate)
 }
 
 function goToToday() {
-  currentDate.value = new Date()
-  selectedDate.value = new Date()
+  setActiveDate(new Date())
 }
 
 function selectDate(day: CalendarDay) {
-  selectedDate.value = day.date
+  setActiveDate(day.date)
 }
 
 function agendarEvento() {
