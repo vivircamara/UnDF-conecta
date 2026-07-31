@@ -1,5 +1,17 @@
 <template>
     <v-container fluid class="pa-6 bg-grey-lighten-4">
+      <v-alert
+        v-if="erro"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mb-4 rounded-lg"
+        closable
+        @click:close="erro = null"
+      >
+        {{ erro }}
+      </v-alert>
+
       <v-row>
         <v-col cols="12" md="2">
               <v-btn
@@ -10,7 +22,7 @@
                 class="text-none mb-6 rounded-lg elevation-2"
                 @click="dialogSolicitar = true"
               >
-                Agendar evento
+                Solicitar Auditório
               </v-btn>
             
             <v-dialog v-model="dialogSolicitar" max-width="500px">
@@ -32,9 +44,27 @@
 
                   <label class="text-caption font-weight-bold text-grey-darken-2 mb-1 d-block">Categoria</label>
                   <v-select
-                    v-model="novoEvento.categoria"
-                    :items="['Acadêmico', 'Administrativo', 'Auditórios', 'Eventos', 'Palestras']"
+                    v-model="novoEvento.categoriaId"
+                    :items="categoriasEvento"
+                    item-title="nome"
+                    item-value="id"
                     placeholder="Selecione a categoria"
+                    variant="outlined"
+                    density="compact"
+                    class="mb-3 rounded-lg"
+                  ></v-select>
+
+                  <!--
+                    Campus é obrigatório no schema (Event.campus), mas não existia
+                    no formulário original — foi adicionado aqui para viabilizar
+                    a integração real. Lista fixa por ora; mover para endpoint
+                    próprio se a lista de campi crescer.
+                  -->
+                  <label class="text-caption font-weight-bold text-grey-darken-2 mb-1 d-block">Campus</label>
+                  <v-select
+                    v-model="novoEvento.campus"
+                    :items="['Asa Norte', 'Taguatinga']"
+                    placeholder="Selecione o campus"
                     variant="outlined"
                     density="compact"
                     class="mb-3 rounded-lg"
@@ -88,7 +118,8 @@
                     color="primary"
                     variant="flat"
                     class="text-none font-weight-bold rounded-lg px-6"
-                    :disabled="!novoEvento.titulo || !novoEvento.data || !novoEvento.categoria"
+                    :loading="salvando"
+                    :disabled="!novoEvento.titulo || !novoEvento.data || !novoEvento.categoriaId || !novoEvento.campus"
                     @click="agendarEvento"
                   >
                     Agendar
@@ -96,7 +127,7 @@
                 </v-card-actions>
               </v-card>
             </v-dialog>
-            <!-- COLE O NOVO MODAL LOGO AQUI DEBAIXO (AINDA DENTRO DO TEMPLATE) -->
+
             <v-dialog v-model="dialogVerTodos" max-width="650px" scrollable>
               <v-card class="rounded-xl pa-2">
                 <v-card-title class="d-flex justify-space-between align-center pa-4 pb-2">
@@ -116,8 +147,8 @@
                     class="mb-3 pa-3 rounded-lg border elevation-0 bg-white"
                   >
                     <div class="d-flex justify-space-between align-center mb-1">
-                      <v-chip :color="obterCorCategoria(evt.categoria)" size="x-small" label class="font-weight-bold">
-                        {{ evt.categoria.toUpperCase() }}
+                      <v-chip :color="obterCorCategoria(evt.categoriaId)" size="x-small" label class="font-weight-bold">
+                        {{ evt.categoriaNome.toUpperCase() }}
                       </v-chip>
                       <span class="text-caption text-grey-darken-1 font-weight-bold">{{ evt.dataFormatted }}</span>
                     </div>
@@ -153,15 +184,20 @@
               </div>
             </div>
             <span class="text-caption text-grey-darken-1">{{ resumoEventosDoMes }}</span>
+            <span class="text-caption text-grey-darken-1">{{ eventosDoMes.length }} eventos agendados este mês.</span>
           </v-card>
 
         
           <div class="text-caption font-weight-bold text-grey-darken-1 mb-2">CATEGORIAS</div>
-          <v-checkbox v-model="categories.academico" label="Acadêmico" color="blue" hide-details density="compact"></v-checkbox>
-          <v-checkbox v-model="categories.administrativo" label="Administrativo" color="orange" hide-details density="compact"></v-checkbox>
-          <v-checkbox v-model="categories.auditorios" label="Auditórios" color="teal" hide-details density="compact"></v-checkbox>
-          <v-checkbox v-model="categories.eventos" label="Eventos" color="grey" hide-details density="compact"></v-checkbox>
-          <v-checkbox v-model="categories.palestras" label="Palestras" color="purple" hide-details density="compact"></v-checkbox>
+          <v-checkbox
+            v-for="cat in categoriasEvento"
+            :key="cat.id"
+            v-model="categoriasVisiveis[cat.id]"
+            :label="cat.nome"
+            :color="cat.cor"
+            hide-details
+            density="compact"
+          ></v-checkbox>
         </v-col>
 
         
@@ -185,7 +221,7 @@
             </div>
 
           
-            <v-sheet border class="rounded-lg">
+            <v-sheet border class="rounded-lg" :class="{ 'opacity-50': carregando }">
               <div :class="['calendar-grid', `view-${viewType}`]">
                 <div  v-for="day in (viewType === 'dia' ? [weekDays[(selectedDate || currentDate).getDay()]] : weekDays)" :key="day" class="weekday-header">
                   {{ day }}
@@ -229,25 +265,33 @@
             <v-btn variant="text" color="primary" density="compact" class="text-none" @click="dialogVerTodos = true">Ver todos</v-btn>
           </div>
 
-          <v-card 
-            v-for="evt in eventosFiltrados" 
-            :key="evt.id" 
-            class="mb-3 pa-3 rounded-lg border elevation-0 bg-white"
-          >
-            <v-chip :color="obterCorCategoria(evt.categoria)" size="x-small" label class="mb-2 font-weight-bold">
-              {{ evt.categoria.toUpperCase() }}
-            </v-chip>
-            <div class="font-weight-bold text-subtitle-2 mb-1">{{ evt.titulo }}</div>
-            <div class="text-caption text-grey-darken-1 d-flex align-center mb-1">
-              <v-icon size="14" class="mr-1">mdi-clock-outline</v-icon> {{ evt.dataFormatted }}, {{ evt.horario }}
+          <v-skeleton-loader v-if="carregando" type="card" class="mb-3 rounded-lg"></v-skeleton-loader>
+
+          <template v-else>
+            <div v-if="eventosFiltrados.length === 0" class="text-caption text-grey-darken-1 text-center py-4">
+              Nenhum evento próximo.
             </div>
-            <div class="text-caption text-grey-darken-1 d-flex align-center mb-1">
-              <v-icon size="14" class="mr-1">mdi-map-marker-outline</v-icon> {{ evt.local }}
-            </div>
-            <div v-if="evt.responsavel" class="text-caption text-grey-darken-1 d-flex align-center">
-              <v-icon size="14" class="mr-1">mdi-account-outline</v-icon> {{ evt.responsavel }}
-            </div>
-          </v-card>
+
+            <v-card 
+              v-for="evt in eventosFiltrados" 
+              :key="evt.id" 
+              class="mb-3 pa-3 rounded-lg border elevation-0 bg-white"
+            >
+              <v-chip :color="obterCorCategoria(evt.categoriaId)" size="x-small" label class="mb-2 font-weight-bold">
+                {{ evt.categoriaNome.toUpperCase() }}
+              </v-chip>
+              <div class="font-weight-bold text-subtitle-2 mb-1">{{ evt.titulo }}</div>
+              <div class="text-caption text-grey-darken-1 d-flex align-center mb-1">
+                <v-icon size="14" class="mr-1">mdi-clock-outline</v-icon> {{ evt.dataFormatted }}, {{ evt.horario }}
+              </div>
+              <div class="text-caption text-grey-darken-1 d-flex align-center mb-1">
+                <v-icon size="14" class="mr-1">mdi-map-marker-outline</v-icon> {{ evt.local }}
+              </div>
+              <div v-if="evt.responsavel" class="text-caption text-grey-darken-1 d-flex align-center">
+                <v-icon size="14" class="mr-1">mdi-account-outline</v-icon> {{ evt.responsavel }}
+              </div>
+            </v-card>
+          </template>
         </v-col>
 
       </v-row>
@@ -257,6 +301,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
+import AppHeader from '@/components/common/AppHeader.vue'
+import {
+  listarEventos,
+  listarCategoriasEvento,
+  criarEvento,
+  type Evento,
+  type CategoriaEvento,
+} from '@/services/agenda'
 
 interface CalendarEvent {
   id: number
@@ -273,11 +326,14 @@ interface CalendarDay {
   events: CalendarEvent[]
 }
 
+// Formato "achatado" usado pela UI — deriva dos campos reais da API
+// (inicio/fim como Date, categoria como objeto) para exibição simples.
 interface EventoCompleto {
   id: number
   titulo: string
-  categoria: string
-  data: string
+  categoriaId: number
+  categoriaNome: string
+  data: string // yyyy-mm-dd, usado para casar com as células do calendário
   dataFormatted: string
   horario: string
   local: string
@@ -287,22 +343,22 @@ interface EventoCompleto {
 const viewType = ref('mes')
 const dialogSolicitar = ref(false)
 const dialogVerTodos = ref(false)
+const carregando = ref(false)
+const salvando = ref(false)
+const erro = ref<string | null>(null)
+
+const categoriasEvento = ref<CategoriaEvento[]>([])
+// Chave = categoriaId, valor = visível ou não no calendário/filtro
+const categoriasVisiveis = reactive<Record<number, boolean>>({})
 
 const novoEvento = ref({
   titulo: '',
-  categoria: 'Auditórios',
+  categoriaId: null as number | null,
+  campus: '',
   data: '',
   horario: '',
   local: '',
-  responsavel: ''
-})
-
-const categories = ref({
-  academico: true,
-  administrativo: true,
-  auditorios: true,
-  eventos: false,
-  palestras: true
+  responsavel: '',
 })
 
 const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -316,36 +372,63 @@ const selectedDate = ref<Date | null>(
   new Date(hoje.getFullYear(), hoje.getMonth(), 1)
 )
 
-const listaEventos = ref<EventoCompleto[]>([
-  {
-    id: 1,
-    titulo: 'Defesa de TCC - Engenharia Civil',
-    categoria: 'Acadêmico',
-    data: '2026-07-08',
-    dataFormatted: '08 Julho',
-    horario: '14:00 - 16:00',
-    local: 'Auditório B, Prédio Central',
-    responsavel: 'Prof. Carlos Eduardo'
-  },
-  {
-    id: 2,
-    titulo: 'Reunião Conselho Administrativo',
-    categoria: 'Administrativo',
-    data: '2026-07-08',
-    dataFormatted: '08 Julho',
-    horario: '09:30 - 12:00',
-    local: 'Sala de Reuniões, Reitoria'
+const listaEventos = ref<EventoCompleto[]>([])
+
+// --- Carregamento inicial ---------------------------------------------------
+
+onMounted(async () => {
+  carregando.value = true
+  erro.value = null
+  try {
+    const [resCategorias, resEventos] = await Promise.all([
+      listarCategoriasEvento({ limit: 100 }),
+      listarEventos({ limit: 100, sort: 'inicio', order: 'asc' }),
+    ])
+
+    categoriasEvento.value = resCategorias.data.data
+    categoriasEvento.value.forEach((cat) => {
+      categoriasVisiveis[cat.id] = true
+    })
+
+    listaEventos.value = resEventos.data.data.map(mapEventoParaCompleto)
+  } catch (e) {
+    erro.value = 'Não foi possível carregar os eventos do calendário. Verifique se o backend está no ar.'
+    console.error(e)
+  } finally {
+    carregando.value = false
   }
-])
+})
+
+function mapEventoParaCompleto(evt: Evento): EventoCompleto {
+  const inicio = new Date(evt.inicio)
+  const fim = new Date(evt.fim)
+  const formatarHora = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  return {
+    id: evt.id,
+    titulo: evt.titulo,
+    categoriaId: evt.categoriaId,
+    categoriaNome: evt.categoria?.nome ?? 'Sem categoria',
+    data: inicio.toISOString().split('T')[0],
+    dataFormatted: inicio.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' }),
+    horario: `${formatarHora(inicio)} - ${formatarHora(fim)}`,
+    local: evt.local,
+    responsavel: evt.criadoPorNome,
+  }
+}
+
+// --- Filtros e exibição -----------------------------------------------------
 
 const eventosFiltrados = computed(() => {
-  return listaEventos.value.filter(evt => {
-    if (evt.categoria === 'Acadêmico') return categories.value.academico
-    if (evt.categoria === 'Administrativo') return categories.value.administrativo
-    if (evt.categoria === 'Auditórios') return categories.value.auditorios
-    if (evt.categoria === 'Eventos') return categories.value.eventos
-    if (evt.categoria === 'Palestras') return categories.value.palestras
-    return true
+  return listaEventos.value.filter((evt) => categoriasVisiveis[evt.categoriaId] !== false)
+})
+
+const eventosDoMes = computed(() => {
+  const mes = currentDate.value.getMonth()
+  const ano = currentDate.value.getFullYear()
+  return listaEventos.value.filter((evt) => {
+    const [y, m] = evt.data.split('-').map(Number)
+    return y === ano && m - 1 === mes
   })
 })
 
@@ -390,6 +473,9 @@ function obterCorCategoria(cat: string) {
     'Palestras': 'purple'
   }
   return cores[cat] || 'primary'
+function obterCorCategoria(categoriaId: number) {
+  const cat = categoriasEvento.value.find((c) => c.id === categoriaId)
+  return cat?.cor || '#1867C0'
 }
 
 const calendarDays = computed(() => {
@@ -458,7 +544,7 @@ function createDayObject(date: Date, isCurrentMonth: boolean, today: Date): Cale
     .map(e => ({
       id: e.id,
       title: e.titulo,
-      color: obterCorCategoria(e.categoria)
+      color: obterCorCategoria(e.categoriaId)
     }))
 
   return {
@@ -538,26 +624,55 @@ function selectDate(day: CalendarDay) {
   setActiveDate(day.date)
 }
 
-function agendarEvento() {
-  if (!novoEvento.value.titulo || !novoEvento.value.data || !novoEvento.value.categoria) return
+// Aceita "14:00 - 16:00" ou "14:00-16:00"; se não conseguir separar
+// horário de início/fim, assume 1h de duração a partir do início.
+function parseHorario(data: string, horario: string): { inicio: Date; fim: Date } {
+  const [ano, mes, dia] = data.split('-').map(Number)
+  const partes = horario.split('-').map((p) => p.trim())
 
-  const [ano, mes, dia] = novoEvento.value.data.split('-')
-  const dateObj = new Date(parseInt(ano), parseInt(mes) - 1, parseInt(dia))
-  const dataFormatted = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })
+  const montarData = (hhmm: string, fallbackHour = 0) => {
+    const match = hhmm.match(/^(\d{1,2}):(\d{2})$/)
+    const hora = match ? Number(match[1]) : fallbackHour
+    const minuto = match ? Number(match[2]) : 0
+    return new Date(ano, mes - 1, dia, hora, minuto)
+  }
 
-  listaEventos.value.unshift({
-    id: Date.now(),
-    titulo: novoEvento.value.titulo,
-    categoria: novoEvento.value.categoria,
-    data: novoEvento.value.data,
-    dataFormatted: dataFormatted,
-    horario: novoEvento.value.horario || 'Dia Inteiro',
-    local: novoEvento.value.local || 'Auditório Central',
-    responsavel: novoEvento.value.responsavel
-  })
+  const inicio = montarData(partes[0] || '00:00')
+  const fim = partes[1] ? montarData(partes[1]) : new Date(inicio.getTime() + 60 * 60 * 1000)
 
-  novoEvento.value = { titulo: '', categoria: 'Auditórios', data: '', horario: '', local: '', responsavel: '' }
-  dialogSolicitar.value = false
+  return { inicio, fim }
+}
+
+async function agendarEvento() {
+  if (!novoEvento.value.titulo || !novoEvento.value.data || !novoEvento.value.categoriaId || !novoEvento.value.campus) return
+
+  salvando.value = true
+  erro.value = null
+
+  try {
+    const { inicio, fim } = parseHorario(novoEvento.value.data, novoEvento.value.horario || '00:00')
+
+    const { data } = await criarEvento({
+      titulo: novoEvento.value.titulo,
+      categoriaId: novoEvento.value.categoriaId,
+      campus: novoEvento.value.campus,
+      inicio: inicio.toISOString(),
+      fim: fim.toISOString(),
+      local: novoEvento.value.local || 'A definir',
+      // TODO: substituir por usuário autenticado quando login existir.
+      criadoPorNome: novoEvento.value.responsavel || 'Ana Silva Santos',
+    })
+
+    listaEventos.value.unshift(mapEventoParaCompleto(data.data))
+
+    novoEvento.value = { titulo: '', categoriaId: null, campus: '', data: '', horario: '', local: '', responsavel: '' }
+    dialogSolicitar.value = false
+  } catch (e) {
+    erro.value = 'Não foi possível agendar o evento. Tente novamente.'
+    console.error(e)
+  } finally {
+    salvando.value = false
+  }
 }
 </script>
 

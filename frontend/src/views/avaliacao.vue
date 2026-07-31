@@ -127,8 +127,8 @@
                       {{ item.titulo }}
                     </h3>
                     <span class="text-caption text-grey-darken-1">
-                      {{ item.subtitulo }}
-                    </span>
+                    {{ item.descricao }}
+                  </span>
                   </div>
                 </div>
 
@@ -217,7 +217,13 @@
 
                 <div v-if="!enq.respondido">
                   <v-radio-group v-model="enq.respostaSelecionada">
-                    <v-radio v-for="(op, idx) in enq.opcoes" :key="idx" :label="op" :value="op" color="#0F2A4A"></v-radio>
+                    <v-radio
+                      v-for="op in enq.opcoes"
+                      :key="op.id"
+                      :label="op.texto"
+                      :value="op.id"
+                      color="#0F2A4A"
+                    />
                   </v-radio-group>
                   <v-btn
                     color="#0F2A4A"
@@ -300,6 +306,25 @@ import {
   porcentagemProgresso,
   porcentagemEnquetes,
 } from '@/stores/avaliacao'
+import { ref, computed, onMounted } from 'vue'
+
+import {
+  listarQuestionariosAtivos,
+  criarAvaliacao,
+  buscarAvaliacao,
+  listarEnquetesAtivas,
+  votarEnquete,
+  resultadoEnquete,
+  type Questionario,
+  type Enquete
+} from '@/services/avaliacao'
+import AppHeader from '@/components/common/AppHeader.vue'
+import { listarPerguntasDoQuestionario } from '@/services/avaliacao'
+
+onMounted(async () => {
+  await carregarQuestionarios()
+  await carregarEnquetes()
+})
 
 const menuAtivo = ref('pendentes')
 const snackbar = ref(false)
@@ -309,12 +334,130 @@ const dialogConfirmar = ref(false)
 const itemSelecionado = ref<any>(null)
 const botaoConfirmar = ref<any>(null)
 
+type RespondidaInfo = { questionarioId: number; avaliacaoId: number }
+
+async function carregarQuestionarios() {
+  try {
+    const { data: questionarios } = await listarQuestionariosAtivos()
+
+    const respondidas: RespondidaInfo[] = JSON.parse(
+      localStorage.getItem('avaliacoesRespondidas') ?? '[]'
+    )
+
+    const pendentes: AvaliacaoUI[] = []
+    const concluidas: any[] = []
+
+    for (const q of questionarios) {
+      const info = respondidas.find(r => r.questionarioId === q.id)
+
+      if (info) {
+        try {
+          const { data: avaliacao } = await buscarAvaliacao(info.avaliacaoId)
+
+          const respostaNota = avaliacao.respostas.find(r => r.nota != null)
+          const respostaTexto = avaliacao.respostas.find(r => r.texto)
+
+          concluidas.push({
+            ...q,
+            subtitulo: q.descricao ?? '',
+            nota: respostaNota?.nota ?? 0,
+            comentario: respostaTexto?.texto ?? '',
+            dataEnvio: avaliacao.enviadaEm
+              ? new Date(avaliacao.enviadaEm).toLocaleDateString('pt-BR')
+              : '-',
+          })
+        } catch (err) {
+          // Avaliação referenciada no localStorage não existe mais no backend
+          // (ex.: banco resetado). Trata como pendente para não perder o questionário.
+          console.warn(`Avaliação ${info.avaliacaoId} não encontrada, tratando como pendente.`, err)
+          pendentes.push({
+            ...q,
+            subtitulo: q.descricao ?? '',
+            nota: 0,
+            comentario: '',
+            placeholder: 'Comentário (opcional)...',
+          })
+        }
+      } else {
+        pendentes.push({
+          ...q,
+          subtitulo: q.descricao ?? '',
+          nota: 0,
+          comentario: '',
+          placeholder: 'Comentário (opcional)...',
+        })
+      }
+    }
+
+    avaliacoesPendentes.value = pendentes
+    avaliacoesConcluidas.value = concluidas
+    totalAvaliacoes.value = pendentes.length + concluidas.length
+
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+// --- MENU LATERAL ---
 const menuItems = ref([
   { title: 'Avaliações pendentes', value: 'pendentes' },
   { title: 'Minhas avaliações', value: 'minhas' },
   { title: 'Enquetes', value: 'enquetes' }
 ])
 
+// --- LISTA DE PENDENTES ---
+type AvaliacaoUI = Questionario & {
+  subtitulo: string
+  nota: number
+  comentario: string
+  placeholder: string
+}
+
+const avaliacoesPendentes = ref<AvaliacaoUI[]>([])
+
+// --- LISTA DE CONCLUÍDAS ---
+const avaliacoesConcluidas = ref<any[]>([])
+
+// --- CÁLCULO DE PROGRESSO DINÂMICO ---
+const totalAvaliacoes = ref(3) // Total de avaliações do semestre
+
+const porcentagemProgresso = computed(() => {
+  return Math.round((avaliacoesConcluidas.value.length / totalAvaliacoes.value) * 100)
+})
+
+// --- CÁLCULO DE PROGRESSO DAS ENQUETES ---
+const enquetesRespondidasCount = computed(() => {
+  return enquetes.value.filter(e => e.respondido).length
+})
+
+const porcentagemEnquetes = computed(() => {
+  if (enquetes.value.length === 0) return 0
+  return Math.round((enquetesRespondidasCount.value / enquetes.value.length) * 100)
+})
+
+// --- LISTA DE ENQUETES ---
+const enquetes = ref<any[]>([])
+
+async function carregarEnquetes() {
+  try {
+    const resposta = await listarEnquetesAtivas()
+
+    console.log('Enquetes:', resposta.data)
+
+    enquetes.value = resposta.data.map(enquete => ({
+    ...enquete,
+    respondido: false,
+    respostaSelecionada: null,
+    resultado: null
+  }))
+  } catch (err) {
+    console.error('Erro ao carregar enquetes:', err)
+  }
+}
+
+// --- FUNÇÕES DE ENVIO ---
+
+// 1. Valida se marcou estrelas e abre o modal de confirmação
 function abrirConfirmacao(item: any) {
   // Nota 0 também é uma resposta válida.
   itemSelecionado.value = item
@@ -335,6 +478,8 @@ watch(dialogConfirmar, (aberto) => {
 })
 
 function processarEnvioFinal() {
+// 2. Processa o envio definitivo após o usuário clicar em "Sim, enviar" no modal
+async function processarEnvioFinal() {
   if (!itemSelecionado.value) return
 
   const item = itemSelecionado.value
@@ -356,6 +501,88 @@ function responderEnquete(enquete: any) {
   enquete.respondido = true
   mensagemFeedback.value = 'Obrigado por responder à enquete!'
   snackbar.value = true
+  try {
+    // Busca as perguntas do questionário
+    const { data: perguntas } =
+      await listarPerguntasDoQuestionario(item.id)
+
+    const { data: avaliacaoCriada } = await criarAvaliacao({
+      questionarioId: item.id,
+      respostas: [
+        {
+          perguntaId: perguntas[0].id,
+          nota: item.nota,
+          texto: item.comentario
+        }
+      ]
+    })
+
+    // Salva localmente o par questionarioId -> avaliacaoId
+    // (necessário para recuperar a nota real ao recarregar a página,
+    // já que ainda não há autenticação/usuário para consultar no backend)
+    const respondidas: RespondidaInfo[] = JSON.parse(
+      localStorage.getItem('avaliacoesRespondidas') ?? '[]'
+    )
+
+    if (!respondidas.some(r => r.questionarioId === item.id)) {
+      respondidas.push({
+        questionarioId: item.id,
+        avaliacaoId: avaliacaoCriada.data.id,
+      })
+
+      localStorage.setItem(
+        'avaliacoesRespondidas',
+        JSON.stringify(respondidas)
+      )
+    }
+
+    avaliacoesPendentes.value =
+      avaliacoesPendentes.value.filter(a => a.id !== item.id)
+
+    avaliacoesConcluidas.value.unshift({
+      ...item,
+      dataEnvio: new Date().toLocaleDateString('pt-BR')
+    })
+
+    dialogConfirmar.value = false
+    itemSelecionado.value = null
+
+    mensagemFeedback.value = 'Avaliação enviada com sucesso!'
+    snackbar.value = true
+
+  } catch (err) {
+    console.error(err)
+    mensagemFeedback.value = 'Não foi possível enviar sua avaliação. Tente novamente.'
+    snackbar.value = true
+  }
+}
+// 3. Processa o voto da enquete
+async function responderEnquete(enquete: any) {
+
+  if (!enquete.respostaSelecionada) return
+
+  try {
+
+    await votarEnquete(
+      enquete.id,
+      enquete.respostaSelecionada
+    )
+
+    enquete.respondido = true
+
+    const { data } =
+      await resultadoEnquete(enquete.id)
+
+    enquete.resultado = data
+
+    mensagemFeedback.value =
+      'Obrigado por responder à enquete!'
+
+    snackbar.value = true
+
+  } catch (err) {
+    console.error(err)
+  }
 }
 </script>
 

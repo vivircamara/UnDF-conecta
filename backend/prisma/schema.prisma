@@ -1,13 +1,234 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
+}
+
+enum StatusPublicacao {
+  PENDENTE
+  EM_ANALISE
+  APROVADA
+  RESOLVIDA
+  REJEITADA
+}
+
+enum TipoVoto {
+  CURTIDA
+}
+
+enum TipoPergunta {
+  ESTRELAS
+  TEXTO
+  MULTIPLA_ESCOLHA
+}
+
+//
+// CALENDÁRIO
+//
+
+model CategoriaEvento {
+  id      Int    @id @default(autoincrement())
+  nome    String @unique
+  cor     String
+
+  eventos Event[]
+}
+
+model Event {
+  id            Int      @id @default(autoincrement())
+
+  titulo        String
+  descricao     String?  @db.Text
+
+  inicio        DateTime
+  fim           DateTime
+
+  local         String
+  campus        String
+  curso         String?
+
+  categoriaId   Int
+  categoria     CategoriaEvento @relation(fields: [categoriaId], references: [id])
+
+  criadoPorNome String
+
+  criadoEm      DateTime @default(now())
+  atualizadoEm  DateTime @updatedAt
+
+  @@index([inicio])
+  @@index([categoriaId])
+}
+
+
+//
+// FÓRUM
+//
+
+model ForumCategoria {
+  id    Int    @id @default(autoincrement())
+  nome  String @unique
+
+  posts ForumPost[]
+}
+
+model ForumPost {
+  id           Int @id @default(autoincrement())
+
+  titulo       String
+  conteudo     String @db.Text
+
+  categoriaId  Int
+  categoria    ForumCategoria @relation(fields: [categoriaId], references: [id])
+
+  autorNome    String
+  autorCurso   String?
+  autorCampus  String?
+
+  status       StatusPublicacao @default(PENDENTE)
+
+  comentarios  ForumComment[]
+  votos        ForumVote[]
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([categoriaId])
+  @@index([status])
+}
+
+model ForumComment {
+  id         Int @id @default(autoincrement())
+
+  conteudo   String @db.Text
+  oficial    Boolean @default(false)
+
+  postId     Int
+  post       ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  autorNome  String
+
+  criadoEm   DateTime @default(now())
+}
+
+model ForumVote {
+  id                   Int @id @default(autoincrement())
+  tipo                 TipoVoto @default(CURTIDA)
+  postId               Int
+  post                 ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  usuarioIdentificador String
+  criadoEm             DateTime @default(now())
+
+  @@unique([postId, usuarioIdentificador])
+}
+
+//
+// AVALIAÇÃO INSTITUCIONAL
+//
+
+model Questionario {
+  id         Int @id @default(autoincrement())
+
+  titulo     String
+  descricao  String?
+
+  inicio     DateTime
+  fim        DateTime
+
+  perguntas  Pergunta[]
+  avaliacoes Avaliacao[]
+
+  criadoEm   DateTime @default(now())
+}
+
+model Pergunta {
+  id             Int @id @default(autoincrement())
+
+  enunciado      String
+  tipo           TipoPergunta
+
+  questionarioId Int
+  questionario   Questionario @relation(fields: [questionarioId], references: [id], onDelete: Cascade)
+
+  opcoes         OpcaoPergunta[]
+  respostas      Resposta[]
+}
+
+model OpcaoPergunta {
+  id         Int @id @default(autoincrement())
+
+  texto      String
+
+  perguntaId Int
+  pergunta   Pergunta @relation(fields: [perguntaId], references: [id], onDelete: Cascade)
+
+  respostas  Resposta[]
+}
+
+model Avaliacao {
+  id             Int @id @default(autoincrement())
+
+  questionarioId Int
+  questionario   Questionario @relation(fields: [questionarioId], references: [id])
+
+  respostas      Resposta[]
+
+  enviadaEm      DateTime @default(now())
+}
+
+model Resposta {
+  id          Int @id @default(autoincrement())
+
+  avaliacaoId Int
+  avaliacao   Avaliacao @relation(fields: [avaliacaoId], references: [id], onDelete: Cascade)
+
+  perguntaId  Int
+  pergunta    Pergunta @relation(fields: [perguntaId], references: [id])
+
+  nota        Int?
+  texto       String? @db.Text
+  opcaoId     Int?
+  opcao       OpcaoPergunta? @relation(fields: [opcaoId], references: [id])
+}
+
+//
+// ENQUETES
+//
+
+model Enquete {
+  id       Int @id @default(autoincrement())
+
+  pergunta String
+
+  inicio   DateTime
+  fim      DateTime
+
+  opcoes   OpcaoEnquete[]
+  votos    VotoEnquete[]
+
+  criadaEm DateTime @default(now())
+}
+
+model OpcaoEnquete {
+  id        Int @id @default(autoincrement())
+
+  texto     String
+
+  enqueteId Int
+  enquete   Enquete @relation(fields: [enqueteId], references: [id], onDelete: Cascade)
+
+  votos     VotoEnquete[]
+}
+
+model VotoEnquete {
+  id        Int @id @default(autoincrement())
+
+  enqueteId Int
+  enquete   Enquete @relation(fields: [enqueteId], references: [id], onDelete: Cascade)
+
+  opcaoId   Int
+  opcao     OpcaoEnquete @relation(fields: [opcaoId], references: [id], onDelete: Cascade)
+
+  criadoEm  DateTime @default(now())
 }

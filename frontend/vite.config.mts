@@ -46,5 +46,16 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    // Se a 3000 estiver ocupada, falha em vez de trocar de porta
+    // silenciosamente — evita o proxy apontar para o lugar errado.
+    strictPort: true,
+    proxy: {
+      '/api': {
+        // 127.0.0.1 em vez de "localhost" — evita resolução para ::1 (IPv6)
+        // no Windows, que causa ECONNREFUSED mesmo com o backend no ar.
+        target: 'http://127.0.0.1:4000',
+        changeOrigin: true,
+      },
+    },
   },
 })
